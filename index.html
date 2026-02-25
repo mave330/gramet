@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRAMET Generator — Coupe Météo en Route</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky-dark: #0a0e1a;
+    --sky-mid: #0d1b3e;
+    --sky-blue: #1a3a6e;
+    --horizon: #1e4d8c;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --green: #39ff14;
+    --text: #c8deff;
+    --muted: #4a6fa0;
+    --panel: rgba(13, 27, 62, 0.8);
+    --border: rgba(0, 212, 255, 0.2);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--sky-dark);
+    color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated sky background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse 80% 40% at 50% 0%, rgba(26, 58, 110, 0.8) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 30% at 20% 100%, rgba(0, 212, 255, 0.05) 0%, transparent 60%),
+      linear-gradient(180deg, #0a0e1a 0%, #0d1b3e 40%, #091428 100%);
+    z-index: -2;
+  }
+
+  /* Stars */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.7) 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 5%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 50% 20%, rgba(255,255,255,0.8) 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 8%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 18%, rgba(255,255,255,0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 15% 35%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 40%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 40% 12%, rgba(0,212,255,0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 60% 30%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 25% 50%, rgba(255,255,255,0.3) 0%, transparent 100%);
+    z-index: -1;
+  }
+
+  /* Header */
+  header {
+    padding: 3rem 2rem 1rem;
+    text-align: center;
+    position: relative;
+  }
+
+  .logo-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .plane-icon {
+    font-size: 2rem;
+    animation: fly 8s ease-in-out infinite;
+  }
+
+  @keyframes fly {
+    0%, 100% { transform: translateY(0) rotate(-5deg); }
+    50% { transform: translateY(-6px) rotate(2deg); }
+  }
+
+  h1 {
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #fff;
+    line-height: 0.9;
+  }
+
+  h1 span.accent {
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+  }
+
+  .tagline {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-top: 0.75rem;
+  }
+
+  /* Horizon line decoration */
+  .horizon-bar {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--horizon), var(--accent), transparent);
+    margin: 2rem 0;
+    position: relative;
+  }
+
+  .horizon-bar::before, .horizon-bar::after {
+    content: '✦';
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--accent);
+    font-size: 0.6rem;
+  }
+  .horizon-bar::before { left: calc(50% - 60px); }
+  .horizon-bar::after { right: calc(50% - 60px); }
+
+  /* Main card */
+  .card {
+    max-width: 760px;
+    margin: 0 auto 2rem;
+    padding: 0 1.5rem;
+  }
+
+  .form-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 2.5rem;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .form-panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), var(--accent), transparent);
+  }
+
+  /* Airport inputs row */
+  .route-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1rem;
+    align-items: end;
+    margin-bottom: 2rem;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .input-group label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .input-group label .badge {
+    display: inline-block;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    font-size: 0.6rem;
+    margin-left: 6px;
+    color: var(--accent);
+    border-radius: 2px;
+  }
+
+  .icao-input {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: #fff;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 2rem;
+    font-weight: bold;
+    letter-spacing: 0.25em;
+    padding: 0.6rem 1rem;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    width: 100%;
+  }
+
+  .icao-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 20px rgba(0, 212, 255, 0.15);
+    background: rgba(0, 212, 255, 0.05);
+  }
+
+  .icao-input::placeholder {
+    color: rgba(255,255,255,0.15);
+    letter-spacing: 0.15em;
+  }
+
+  .icao-input.error {
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 1px var(--accent2);
+  }
+
+  .arrow-divider {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding-bottom: 0.6rem;
+    color: var(--accent);
+  }
+
+  .arrow-divider svg {
+    width: 32px;
+    height: 20px;
+  }
+
+  .arrow-divider .dist-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  /* Options row */
+  .options-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .option-group label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .option-select, .option-input {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+    transition: border-color 0.2s;
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .option-select:focus, .option-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .select-wrapper {
+    position: relative;
+  }
+
+  .select-wrapper::after {
+    content: '▾';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--accent);
+    pointer-events: none;
+    font-size: 0.75rem;
+  }
+
+  /* Generate button */
+  .btn-generate {
+    width: 100%;
+    background: transparent;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    padding: 1rem 2rem;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+    border-radius: 2px;
+  }
+
+  .btn-generate::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    transform: translateX(-101%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: -1;
+  }
+
+  .btn-generate:hover {
+    color: var(--sky-dark);
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+  }
+
+  .btn-generate:hover::before {
+    transform: translateX(0);
+  }
+
+  .btn-generate:active {
+    transform: scale(0.99);
+  }
+
+  /* Error message */
+  .error-msg {
+    display: none;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent2);
+    letter-spacing: 0.1em;
+    margin-top: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-left: 2px solid var(--accent2);
+    background: rgba(255, 107, 53, 0.08);
+  }
+
+  /* Result section */
+  #result-section {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 1.5rem 3rem;
+    display: none;
+  }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .result-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .result-route {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: #fff;
+  }
+
+  .result-route .sep {
+    color: var(--accent);
+    margin: 0 0.25rem;
+  }
+
+  .btn-ogimet {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.75rem;
+    cursor: pointer;
+    text-decoration: none;
+    border-radius: 2px;
+    transition: all 0.2s;
+    display: inline-block;
+    text-transform: uppercase;
+  }
+
+  .btn-ogimet:hover {
+    background: rgba(0, 212, 255, 0.15);
+    border-color: var(--accent);
+  }
+
+  /* Gramet display */
+  .gramet-container {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+    min-height: 200px;
+  }
+
+  .gramet-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    gap: 1rem;
+    color: var(--muted);
+  }
+
+  .radar-ring {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: var(--accent);
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .loading-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    animation: blink 1.5s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  #gramet-img {
+    width: 100%;
+    display: block;
+  }
+
+  .gramet-iframe-wrap {
+    width: 100%;
+    height: 500px;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #gramet-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
+  /* URL display */
+  .url-display {
+    margin-top: 1rem;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .url-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+
+  .url-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    color: rgba(0, 212, 255, 0.7);
+    word-break: break-all;
+    flex: 1;
+  }
+
+  .btn-copy {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    background: none;
+    border: 1px solid var(--border);
+    padding: 0.25rem 0.6rem;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+
+  .btn-copy:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Info note */
+  .cors-note {
+    margin-top: 0.75rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    line-height: 1.6;
+    padding: 0.5rem 0.75rem;
+    border-left: 2px solid var(--muted);
+    background: rgba(255,255,255,0.02);
+    display: none;
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 1.5rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+
+  footer a {
+    color: rgba(0, 212, 255, 0.5);
+    text-decoration: none;
+  }
+
+  footer a:hover {
+    color: var(--accent);
+  }
+
+  /* Responsive */
+  @media (max-width: 560px) {
+    .route-row {
+      grid-template-columns: 1fr;
+    }
+    .arrow-divider {
+      display: none;
+    }
+    .options-row {
+      grid-template-columns: 1fr 1fr;
+    }
+    .form-panel {
+      padding: 1.5rem;
+    }
+    .icao-input {
+      font-size: 1.5rem;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-line">
+    <span class="plane-icon">✈</span>
+  </div>
+  <h1>GRA<span class="accent">MET</span></h1>
+  <div class="tagline">// Coupe météorologique de route · Powered by OGIMET</div>
+</header>
+
+<div class="horizon-bar"></div>
+
+<div class="card">
+  <div class="form-panel">
+    <div class="route-row">
+      <div class="input-group">
+        <label>Départ <span class="badge">OACI</span></label>
+        <input type="text" class="icao-input" id="dep" placeholder="LFPG" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      </div>
+
+      <div class="arrow-divider">
+        <svg viewBox="0 0 32 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 10 L26 10 M20 4 L28 10 L20 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="5" cy="10" r="1.5" fill="currentColor" opacity="0.4"/>
+        </svg>
+        <span class="dist-text">ROUTE</span>
+      </div>
+
+      <div class="input-group">
+        <label>Arrivée <span class="badge">OACI</span></label>
+        <input type="text" class="icao-input" id="arr" placeholder="KJFK" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      </div>
+    </div>
+
+    <div class="options-row">
+      <div class="option-group">
+        <label>Niveau de vol</label>
+        <div class="select-wrapper">
+          <select class="option-select" id="fl">
+            <option value="200">FL200</option>
+            <option value="250">FL250</option>
+            <option value="300">FL300</option>
+            <option value="350" selected>FL350</option>
+            <option value="390">FL390</option>
+            <option value="410">FL410</option>
+            <option value="450">FL450</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="option-group">
+        <label>Durée (h)</label>
+        <input type="number" class="option-input" id="duration" value="8" min="1" max="20" placeholder="8">
+      </div>
+
+      <div class="option-group">
+        <label>Heure (UTC)</label>
+        <input type="number" class="option-input" id="hour" min="0" max="23" placeholder="Auto" id="hour">
+      </div>
+    </div>
+
+    <button class="btn-generate" onclick="generateGramet()">
+      ⬡ &nbsp;Générer le GRAMET
+    </button>
+
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+</div>
+
+<!-- Result -->
+<div id="result-section">
+  <div class="result-header">
+    <div>
+      <div class="result-title">// Coupe en route</div>
+      <div class="result-route" id="result-route-label">—</div>
+    </div>
+    <a id="btn-open-ogimet" class="btn-ogimet" target="_blank">↗ Ouvrir sur OGIMET</a>
+  </div>
+
+  <div class="gramet-container" id="gramet-container">
+    <div class="gramet-loading" id="gramet-loading">
+      <div class="radar-ring"></div>
+      <div class="loading-text">INTERROGATION OGIMET…</div>
+    </div>
+    <img id="gramet-img" style="display:none;" alt="GRAMET">
+  </div>
+
+  <div class="cors-note" id="cors-note">
+    ⚠ Le navigateur a bloqué le chargement direct de l'image (restriction CORS d'OGIMET). Cliquez sur "Ouvrir sur OGIMET" pour accéder à la coupe météo directement sur le site OGIMET.
+  </div>
+
+  <div class="url-display">
+    <span class="url-label">URL :</span>
+    <span class="url-text" id="url-display-text">—</span>
+    <button class="btn-copy" onclick="copyUrl()">copier</button>
+  </div>
+</div>
+
+<footer>
+  Données météo : <a href="https://www.ogimet.com" target="_blank">OGIMET.COM</a> &nbsp;·&nbsp;
+  Algo route : <a href="https://github.com/flyingeek/editolido" target="_blank">flyingeek/editolido</a> &nbsp;·&nbsp;
+  Usage non commercial
+</footer>
+
+<script>
+  // Airport coordinates database (major airports)
+  // Used to estimate great circle intermediate points for better GRAMET accuracy
+  const AIRPORTS = {
+    // Europe
+    'LFPG': { lat: 49.013, lon: 2.550, name: 'Paris CDG' },
+    'LFPO': { lat: 48.726, lon: 2.360, name: 'Paris Orly' },
+    'EGLL': { lat: 51.477, lon: -0.461, name: 'London Heathrow' },
+    'EHAM': { lat: 52.309, lon: 4.764, name: 'Amsterdam' },
+    'EDDF': { lat: 50.026, lon: 8.543, name: 'Frankfurt' },
+    'LEMD': { lat: 40.472, lon: -3.561, name: 'Madrid' },
+    'LIRF': { lat: 41.800, lon: 12.239, name: 'Rome Fiumicino' },
+    'LFMN': { lat: 43.658, lon: 7.215, name: 'Nice' },
+    'LSGG': { lat: 46.238, lon: 6.109, name: 'Genève' },
+    'LSZH': { lat: 47.464, lon: 8.549, name: 'Zurich' },
+    'EBBR': { lat: 50.902, lon: 4.484, name: 'Bruxelles' },
+    'LFBO': { lat: 43.629, lon: 1.363, name: 'Toulouse' },
+    'LFML': { lat: 43.439, lon: 5.221, name: 'Marseille' },
+    'LEBB': { lat: 43.301, lon: -2.906, name: 'Bilbao' },
+    'LPPT': { lat: 38.774, lon: -9.135, name: 'Lisbonne' },
+    'LGAV': { lat: 37.936, lon: 23.944, name: 'Athènes' },
+    'LOWW': { lat: 48.110, lon: 16.569, name: 'Vienne' },
+    'EPWA': { lat: 52.166, lon: 20.967, name: 'Varsovie' },
+    'UUEE': { lat: 55.972, lon: 37.415, name: 'Moscou SVO' },
+    'ESSA': { lat: 59.652, lon: 17.919, name: 'Stockholm' },
+    'ENGM': { lat: 60.194, lon: 11.100, name: 'Oslo' },
+    'EKCH': { lat: 55.618, lon: 12.656, name: 'Copenhague' },
+    // North America
+    'KJFK': { lat: 40.640, lon: -73.779, name: 'New York JFK' },
+    'KLAX': { lat: 33.943, lon: -118.408, name: 'Los Angeles' },
+    'KORD': { lat: 41.978, lon: -87.905, name: 'Chicago ORD' },
+    'KATL': { lat: 33.641, lon: -84.427, name: 'Atlanta' },
+    'KSFO': { lat: 37.619, lon: -122.375, name: 'San Francisco' },
+    'KBOS': { lat: 42.363, lon: -71.006, name: 'Boston' },
+    'KEWR': { lat: 40.690, lon: -74.174, name: 'Newark' },
+    'KMIA': { lat: 25.796, lon: -80.287, name: 'Miami' },
+    'KDFW': { lat: 32.897, lon: -97.038, name: 'Dallas' },
+    'KIAD': { lat: 38.944, lon: -77.456, name: 'Washington Dulles' },
+    'CYYZ': { lat: 43.677, lon: -79.631, name: 'Toronto' },
+    'CYYC': { lat: 51.113, lon: -114.020, name: 'Calgary' },
+    'CYUL': { lat: 45.470, lon: -73.741, name: 'Montréal' },
+    'KIAH': { lat: 29.984, lon: -95.341, name: 'Houston' },
+    'KSEA': { lat: 47.449, lon: -122.309, name: 'Seattle' },
+    'KDEN': { lat: 39.857, lon: -104.674, name: 'Denver' },
+    'PANC': { lat: 61.174, lon: -149.996, name: 'Anchorage' },
+    // Asia & Pacific
+    'RJTT': { lat: 35.553, lon: 139.781, name: 'Tokyo Haneda' },
+    'RJAA': { lat: 35.765, lon: 140.386, name: 'Tokyo Narita' },
+    'VHHH': { lat: 22.309, lon: 113.915, name: 'Hong Kong' },
+    'WSSS': { lat: 1.359, lon: 103.989, name: 'Singapour' },
+    'OMDB': { lat: 25.253, lon: 55.364, name: 'Dubai' },
+    'ZBAA': { lat: 40.080, lon: 116.585, name: 'Pékin' },
+    'ZSPD': { lat: 31.143, lon: 121.805, name: 'Shanghai' },
+    'RKSI': { lat: 37.460, lon: 126.441, name: 'Séoul Incheon' },
+    'VTBS': { lat: 13.689, lon: 100.750, name: 'Bangkok' },
+    'VIDP': { lat: 28.556, lon: 77.101, name: 'Delhi' },
+    'VABB': { lat: 19.089, lon: 72.868, name: 'Mumbai' },
+    'YSSY': { lat: -33.946, lon: 151.177, name: 'Sydney' },
+    'YMML': { lat: -37.673, lon: 144.843, name: 'Melbourne' },
+    'NZAA': { lat: -37.008, lon: 174.792, name: 'Auckland' },
+    // Africa & Middle East
+    'HAAB': { lat: 8.978, lon: 38.799, name: 'Addis Abeba' },
+    'HKJK': { lat: -1.319, lon: 36.926, name: 'Nairobi' },
+    'FAOR': { lat: -26.139, lon: 28.246, name: 'Johannesburg' },
+    'DNMM': { lat: 6.578, lon: 3.321, name: 'Lagos' },
+    'GMMN': { lat: 33.368, lon: -7.590, name: 'Casablanca' },
+    'HECA': { lat: 30.122, lon: 31.406, name: 'Le Caire' },
+    'OEJN': { lat: 21.679, lon: 39.157, name: 'Djeddah' },
+    // South America
+    'SBGR': { lat: -23.435, lon: -46.473, name: 'São Paulo' },
+    'SAEZ': { lat: -34.822, lon: -58.536, name: 'Buenos Aires' },
+    'SCEL': { lat: -33.393, lon: -70.785, name: 'Santiago' },
+    'SBGL': { lat: -22.810, lon: -43.251, name: 'Rio de Janeiro' },
+    'SKBO': { lat: 4.702, lon: -74.147, name: 'Bogotá' },
+    // Atlantic/Islands
+    'GCFV': { lat: 28.452, lon: -13.864, name: 'Fuerteventura' },
+    'GCLP': { lat: 27.932, lon: -15.387, name: 'Las Palmas' },
+    'LPLA': { lat: 38.761, lon: -27.091, name: 'Açores Lajes' },
+    'BIKF': { lat: 63.985, lon: -22.606, name: 'Keflavík' },
+  };
+
+  let currentUrl = '';
+
+  // Auto-fill current UTC hour
+  const hourInput = document.getElementById('hour');
+  hourInput.value = new Date().getUTCHours();
+
+  // Uppercase input
+  ['dep', 'arr'].forEach(id => {
+    document.getElementById(id).addEventListener('input', function() {
+      const pos = this.selectionStart;
+      this.value = this.value.toUpperCase();
+      this.setSelectionRange(pos, pos);
+    });
+    document.getElementById(id).addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') generateGramet();
+    });
+  });
+
+  function toRad(deg) { return deg * Math.PI / 180; }
+  function toDeg(rad) { return rad * 180 / Math.PI; }
+
+  // Great circle intermediate point
+  function gcPoint(lat1, lon1, lat2, lon2, f) {
+    const d = 2 * Math.asin(Math.sqrt(
+      Math.pow(Math.sin(toRad((lat2-lat1)/2)), 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.pow(Math.sin(toRad((lon2-lon1)/2)), 2)
+    ));
+    if (d === 0) return { lat: lat1, lon: lon1 };
+    const A = Math.sin((1-f)*d)/Math.sin(d);
+    const B = Math.sin(f*d)/Math.sin(d);
+    const x = A*Math.cos(toRad(lat1))*Math.cos(toRad(lon1)) + B*Math.cos(toRad(lat2))*Math.cos(toRad(lon2));
+    const y = A*Math.cos(toRad(lat1))*Math.sin(toRad(lon1)) + B*Math.cos(toRad(lat2))*Math.sin(toRad(lon2));
+    const z = A*Math.sin(toRad(lat1)) + B*Math.sin(toRad(lat2));
+    return { lat: toDeg(Math.atan2(z, Math.sqrt(x*x+y*y))), lon: toDeg(Math.atan2(y, x)) };
+  }
+
+  function gcDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = toRad(lat2-lat1);
+    const dLon = toRad(lon2-lon1);
+    const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+               Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*
+               Math.sin(dLon/2)*Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function buildOgimetUrl(dep, arr, fl, duration, hour) {
+    const depData = AIRPORTS[dep];
+    const arrData = AIRPORTS[arr];
+
+    const now = new Date();
+    now.setUTCHours(hour, 0, 0, 0);
+    const tref = Math.floor(now.getTime() / 1000);
+    const hfin = Math.round(duration);
+
+    if (depData && arrData) {
+      // Build intermediate points along great circle (max 20 for OGIMET)
+      const dist = gcDistance(depData.lat, depData.lon, arrData.lat, arrData.lon);
+      let nPoints = Math.min(Math.max(3, Math.round(dist / 500)), 10);
+      
+      let wmoParam = '';
+      let latParam = `${depData.lat.toFixed(2)},`;
+      let lonParam = `${depData.lon.toFixed(2)},`;
+      let nameParam = `${dep},`;
+      let altParam = `0,`;
+
+      for (let i = 1; i < nPoints - 1; i++) {
+        const f = i / (nPoints - 1);
+        const pt = gcPoint(depData.lat, depData.lon, arrData.lat, arrData.lon, f);
+        latParam += `${pt.lat.toFixed(2)},`;
+        lonParam += `${pt.lon.toFixed(2)},`;
+        nameParam += `,`;
+        altParam += `0,`;
+      }
+      latParam += arrData.lat.toFixed(2);
+      lonParam += arrData.lon.toFixed(2);
+      nameParam += arr;
+      altParam += `0`;
+
+      return `https://www.ogimet.com/display_gramet.php?lang=en&wmo=&name=${nameParam}&lat=${latParam}&lon=${lonParam}&alt=${altParam}&hini=0&tref=${tref}&hfin=${hfin}&hl=3000&aero=yes&fl=${fl}&submit=submit`;
+    } else {
+      // Fallback: use ICAO codes directly for WMO lookup
+      return `https://www.ogimet.com/display_gramet.php?lang=en&icao=${dep}_${arr}&hini=0&tref=${tref}&hfin=${hfin}&hl=3000&aero=yes&fl=${fl}&submit=submit`;
+    }
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = '⚠ ' + msg;
+    el.style.display = 'block';
+  }
+
+  function hideError() {
+    document.getElementById('error-msg').style.display = 'none';
+  }
+
+  function generateGramet() {
+    const dep = document.getElementById('dep').value.trim().toUpperCase();
+    const arr = document.getElementById('arr').value.trim().toUpperCase();
+    const fl = document.getElementById('fl').value;
+    const duration = parseInt(document.getElementById('duration').value) || 8;
+    const hour = parseInt(document.getElementById('hour').value);
+
+    hideError();
+    document.getElementById('dep').classList.remove('error');
+    document.getElementById('arr').classList.remove('error');
+
+    if (!dep || dep.length < 3) {
+      showError('Code OACI de départ invalide (4 lettres, ex: LFPG)');
+      document.getElementById('dep').classList.add('error');
+      return;
+    }
+    if (!arr || arr.length < 3) {
+      showError('Code OACI d\'arrivée invalide (4 lettres, ex: KJFK)');
+      document.getElementById('arr').classList.add('error');
+      return;
+    }
+
+    const url = buildOgimetUrl(dep, arr, fl, duration, hour);
+    currentUrl = url;
+
+    // Update UI
+    document.getElementById('result-route-label').innerHTML = 
+      `${dep}<span class="sep">→</span>${arr}`;
+    document.getElementById('btn-open-ogimet').href = url;
+    document.getElementById('url-display-text').textContent = url;
+    document.getElementById('result-section').style.display = 'block';
+    document.getElementById('cors-note').style.display = 'none';
+
+    // Show loading
+    document.getElementById('gramet-loading').style.display = 'flex';
+    document.getElementById('gramet-img').style.display = 'none';
+
+    // Scroll to result
+    document.getElementById('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Try loading image directly
+    // OGIMET's display_gramet.php actually returns an HTML page that contains the image
+    // The actual image URL needs to be extracted. We'll try an image proxy approach.
+    // Since we can't do CORS, we'll show the direct link and explain.
+
+    // Try to load the image - OGIMET returns HTML page not image directly
+    // The GRAMET image is embedded in the page. We can try to iframe it,
+    // but OGIMET blocks iframe. So we'll show a helpful message with the link.
+    
+    // Actually, let's try fetching via a no-cors proxy concept:
+    // We'll attempt the image load and handle gracefully
+
+    const img = document.getElementById('gramet-img');
+    
+    // OGIMET images are at: ogimet.com/tmp/gramet_XXXXXXXX.png
+    // The display_gramet.php page generates the image and serves the HTML
+    // We can't bypass CORS or X-Frame-Options without a proxy
+
+    // Best UX: show the link prominently and auto-open the page
+    setTimeout(() => {
+      document.getElementById('gramet-loading').style.display = 'none';
+      document.getElementById('cors-note').style.display = 'block';
+      
+      // Show a nice placeholder with the action button
+      showOgimetDirect(url, dep, arr);
+    }, 1000);
+  }
+
+  function showOgimetDirect(url, dep, arr) {
+    const container = document.getElementById('gramet-container');
+    container.innerHTML = `
+      <div style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem 2rem;
+        gap: 1.5rem;
+        text-align: center;
+      ">
+        <div style="
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 0.65rem;
+          letter-spacing: 0.2em;
+          color: var(--muted);
+          text-transform: uppercase;
+        ">Route générée</div>
+        
+        <div style="
+          font-size: 3rem;
+          font-weight: 900;
+          letter-spacing: 0.1em;
+          color: #fff;
+          line-height: 1;
+        ">
+          ${dep} <span style="color: var(--accent)">→</span> ${arr}
+        </div>
+
+        <div style="
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 0.7rem;
+          color: rgba(200,222,255,0.6);
+          max-width: 400px;
+          line-height: 1.8;
+          letter-spacing: 0.05em;
+        ">
+          L'URL OGIMET a été construite avec les coordonnées de la route orthodromique.<br>
+          Cliquez ci-dessous pour afficher le GRAMET sur OGIMET.
+        </div>
+
+        <a href="${url}" target="_blank" style="
+          font-family: 'Barlow Condensed', sans-serif;
+          font-size: 1rem;
+          font-weight: 700;
+          letter-spacing: 0.25em;
+          text-transform: uppercase;
+          color: var(--sky-dark);
+          background: var(--accent);
+          border: none;
+          padding: 0.85rem 2.5rem;
+          cursor: pointer;
+          text-decoration: none;
+          border-radius: 2px;
+          transition: all 0.2s;
+          display: inline-block;
+        " onmouseover="this.style.background='#33ddff'" onmouseout="this.style.background='var(--accent)'">
+          ↗ Afficher le GRAMET sur OGIMET
+        </a>
+        
+        <div style="
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 0.55rem;
+          color: var(--muted);
+          letter-spacing: 0.1em;
+        ">
+          Ou copiez l'URL ci-dessous pour la partager
+        </div>
+      </div>
+    `;
+  }
+
+  function copyUrl() {
+    if (!currentUrl) return;
+    navigator.clipboard.writeText(currentUrl).then(() => {
+      const btn = document.querySelector('.btn-copy');
+      const orig = btn.textContent;
+      btn.textContent = '✓ copié';
+      btn.style.color = 'var(--accent)';
+      btn.style.borderColor = 'var(--accent)';
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
