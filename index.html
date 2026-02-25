@@ -824,7 +824,7 @@ function buildOgimetUrlClient(dep,arr,fl,duration,hour){
       icaos.push(i===0?dep:i===n-1?arr:'');alts.push('0');
     }
     const nameStr=icaos.join('_'),latStr=lats.join('_'),lonStr=lons.join('_'),altStr=alts.join('_');
-    return `${base}?lang=en&wmo=&name=${nameStr}&lat=${latStr}&lon=${lonStr}&alt=${altStr}&hini=0&tref=${tref}&hfin=${hfin}&hl=3000&aero=yes&fl=${fl}&submit=submit`;
+    return `${base}?lang=en&wmo=&icao=${nameStr}&lat=${latStr}&lon=${lonStr}&alt=${altStr}&hini=0&tref=${tref}&hfin=${hfin}&hl=3000&aero=yes&fl=${fl}&submit=submit`;
   } else {
     return `${base}?lang=en&wmo=${dep}_${arr}&hini=0&tref=${tref}&hfin=${hfin}&hl=3000&aero=yes&fl=${fl}&submit=submit`;
   }
