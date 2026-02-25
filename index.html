@@ -720,11 +720,11 @@ async function generateGramet() {
     btn.disabled = false; btn.textContent = '⬡  Générer le GRAMET'; return;
   }
 
-  setLoading('INTERROGATION OGIMET via PROXY…');
+  setLoading('INTERROGATION OGIMET… (peut prendre ~20s)');
 
   try {
     const apiUrl = `${workerBase}/gramet?${params}`;
-    const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(30000) });
+    const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(60000) });
     const data = await resp.json();
 
     if (data.ogimetUrl) {
