@@ -815,18 +815,18 @@ function buildOgimetUrlClient(dep,arr,fl,duration,hour){
   const depA=AIRPORTS[dep],arrA=AIRPORTS[arr];
   if(depA&&arrA){
     const dist=gcDist(depA.lat,depA.lon,arrA.lat,arrA.lon);
-    const n=Math.min(Math.max(3,Math.ceil(dist/600)),12);
+    const n=Math.min(Math.max(3,Math.ceil(dist/200)),12);
     const lats=[],lons=[],icaos=[],alts=[];
     for(let i=0;i<n;i++){
       const f=i/(n-1);
       const pt=i===0?depA:i===n-1?arrA:gcPoint(depA.lat,depA.lon,arrA.lat,arrA.lon,f);
-      lats.push(pt.lat.toFixed(3));lons.push(pt.lon.toFixed(3));
+      lats.push(pt.lat.toFixed(2));lons.push(pt.lon.toFixed(2));
       icaos.push(i===0?dep:i===n-1?arr:'');alts.push('0');
     }
-    const nameStr=icaos.join('_'),latStr=lats.join('_'),lonStr=lons.join('_'),altStr=alts.join('_');
-    return `${base}?lang=en&wmo=&icao=${nameStr}&lat=${latStr}&lon=${lonStr}&alt=${altStr}&hini=0&tref=${tref}&hfin=${hfin}&hl=3000&aero=yes&fl=${fl}&submit=submit`;
+    const icaoStr=icaos.join('_'),latStr=lats.join('_'),lonStr=lons.join('_'),altStr=alts.join('_');
+    return `${base}?lang=en&wmo=&icao=${icaoStr}&lat=${latStr}&lon=${lonStr}&alt=${altStr}&hini=0&tref=${tref}&hfin=${hfin}&hl=3000&aero=yes&fl=${fl}&submit=submit`;
   } else {
-    return `${base}?lang=en&wmo=${dep}_${arr}&hini=0&tref=${tref}&hfin=${hfin}&hl=3000&aero=yes&fl=${fl}&submit=submit`;
+    return `${base}?lang=en&wmo=&icao=${dep}_${arr}&hini=0&tref=${tref}&hfin=${hfin}&hl=3000&aero=yes&fl=${fl}&submit=submit`;
   }
 }
 
