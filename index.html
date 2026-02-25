@@ -454,7 +454,7 @@
       <label>URL du Cloudflare Worker <span class="badge">Requis pour l'image inline</span></label>
       <div class="worker-input-row">
         <input type="url" class="worker-input" id="worker-url"
-          placeholder="https://gramet.mave330.workers.dev/"
+          placeholder="https://gramet-proxy.VOTRE_SOUS_DOMAINE.workers.dev"
           autocomplete="off" spellcheck="false">
         <button class="btn-test-worker" onclick="testWorker()">▶ Tester</button>
       </div>
@@ -628,34 +628,51 @@ function showError(msg) {
 }
 function hideError() { document.getElementById('error-msg').style.display = 'none'; }
 
+// ── Container state machine (never destroys DOM elements) ────────────────────
+// The container always has 3 children: #gramet-loading, #gramet-img, #gramet-fallback
+// We just show/hide them.
+
+function ensureFallbackEl() {
+  let el = document.getElementById('gramet-fallback');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'gramet-fallback';
+    el.style.display = 'none';
+    document.getElementById('gramet-container').appendChild(el);
+  }
+  return el;
+}
+
 function setLoading(text = 'INTERROGATION OGIMET…') {
   document.getElementById('gramet-loading').style.display = 'flex';
   document.getElementById('loading-text').textContent = text;
   document.getElementById('gramet-img').style.display = 'none';
-  document.getElementById('gramet-container').innerHTML = `
-    <div class="gramet-loading">
-      <div class="radar-ring"></div>
-      <div class="loading-text">${text}</div>
-    </div>`;
+  const fb = ensureFallbackEl();
+  fb.style.display = 'none';
 }
 
 function showImage(imgUrl) {
-  document.getElementById('gramet-container').innerHTML =
-    `<img id="gramet-img" src="${imgUrl}" alt="GRAMET météo en route" style="width:100%;display:block">`;
+  document.getElementById('gramet-loading').style.display = 'none';
+  ensureFallbackEl().style.display = 'none';
+  const img = document.getElementById('gramet-img');
+  img.src = imgUrl;
+  img.style.display = 'block';
 }
 
 function showFallback(ogimetUrl, msg) {
-  document.getElementById('gramet-container').innerHTML = `
-    <div class="gramet-error-box">
-      <div class="err-title">⚠ Impossible d'afficher l'image inline</div>
-      <div class="err-msg">${msg}</div>
-      <a href="${ogimetUrl}" target="_blank" rel="noopener" style="
-        font-family:'Barlow Condensed',sans-serif; font-size:1rem; font-weight:700;
-        letter-spacing:.25em; text-transform:uppercase; color:var(--sky-dark);
-        background:var(--accent); border:none; padding:.85rem 2.5rem;
-        cursor:pointer; text-decoration:none; border-radius:2px; display:inline-block;
-      ">↗ Afficher sur OGIMET</a>
-    </div>`;
+  document.getElementById('gramet-loading').style.display = 'none';
+  document.getElementById('gramet-img').style.display = 'none';
+  const fb = ensureFallbackEl();
+  fb.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 2rem;gap:1.5rem;text-align:center;';
+  fb.innerHTML = `
+    <div class="err-title">⚠ Impossible d'afficher l'image inline</div>
+    <div class="err-msg">${msg}</div>
+    <a href="${ogimetUrl}" target="_blank" rel="noopener" style="
+      font-family:'Barlow Condensed',sans-serif; font-size:1rem; font-weight:700;
+      letter-spacing:.25em; text-transform:uppercase; color:var(--sky-dark);
+      background:var(--accent); border:none; padding:.85rem 2.5rem;
+      cursor:pointer; text-decoration:none; border-radius:2px; display:inline-block;
+    ">↗ Afficher sur OGIMET</a>`;
 }
 
 // ── Main: generate GRAMET ────────────────────────────────────────────────────
@@ -803,26 +820,24 @@ function gcDist(lat1,lon1,lat2,lon2){
 function buildOgimetUrlClient(dep,arr,fl,duration,hour){
   const now=new Date();now.setUTCHours(hour,0,0,0);
   const tref=Math.floor(now.getTime()/1000);
+  const hfin=Math.round(duration);
+  const base='http://www.ogimet.com/display_gramet.php';
   const depA=AIRPORTS[dep],arrA=AIRPORTS[arr];
-  let p;
   if(depA&&arrA){
     const dist=gcDist(depA.lat,depA.lon,arrA.lat,arrA.lon);
     const n=Math.min(Math.max(3,Math.ceil(dist/600)),12);
-    const lats=[],lons=[],names=[],alts=[];
+    const lats=[],lons=[],icaos=[],alts=[];
     for(let i=0;i<n;i++){
       const f=i/(n-1);
       const pt=i===0?depA:i===n-1?arrA:gcPoint(depA.lat,depA.lon,arrA.lat,arrA.lon,f);
       lats.push(pt.lat.toFixed(3));lons.push(pt.lon.toFixed(3));
-      names.push(i===0?dep:i===n-1?arr:'');alts.push('0');
+      icaos.push(i===0?dep:i===n-1?arr:'');alts.push('0');
     }
-    p=new URLSearchParams({lang:'en',wmo:'',icao:names.join('_'),lat:lats.join('_'),
-      lon:lons.join('_'),alt:alts.join('_'),hini:'0',tref:String(tref),
-      hfin:String(Math.round(duration)),hl:'3000',aero:'yes',fl:String(fl),submit:'submit'});
+    const nameStr=icaos.join('_'),latStr=lats.join('_'),lonStr=lons.join('_'),altStr=alts.join('_');
+    return `${base}?lang=en&wmo=&icao=${nameStr}&lat=${latStr}&lon=${lonStr}&alt=${altStr}&hini=0&tref=${tref}&hfin=${hfin}&hl=3000&aero=yes&fl=${fl}&submit=submit`;
   } else {
-    p=new URLSearchParams({lang:'en',wmo:`${dep}_${arr}`,hini:'0',tref:String(tref),
-      hfin:String(Math.round(duration)),hl:'3000',aero:'yes',fl:String(fl),submit:'submit'});
+    return `${base}?lang=en&wmo=${dep}_${arr}&hini=0&tref=${tref}&hfin=${hfin}&hl=3000&aero=yes&fl=${fl}&submit=submit`;
   }
-  return `http://www.ogimet.com/display_gramet.php?${p}`;
 }
 
 function copyUrl(){
