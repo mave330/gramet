@@ -815,7 +815,7 @@ function buildOgimetUrlClient(dep,arr,fl,duration,hour){
       lats.push(pt.lat.toFixed(3));lons.push(pt.lon.toFixed(3));
       names.push(i===0?dep:i===n-1?arr:'');alts.push('0');
     }
-    p=new URLSearchParams({lang:'en',wmo:'',name:names.join('_'),lat:lats.join('_'),
+    p=new URLSearchParams({lang:'en',wmo:'',icao:names.join('_'),lat:lats.join('_'),
       lon:lons.join('_'),alt:alts.join('_'),hini:'0',tref:String(tref),
       hfin:String(Math.round(duration)),hl:'3000',aero:'yes',fl:String(fl),submit:'submit'});
   } else {
